@@ -1,7 +1,13 @@
+from ssl import Options
+
 import pandas as pd
 from selenium import webdriver
+from selenium.common import NoSuchElementException
 from selenium.webdriver import ActionChains
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 import time
 
 from selenium.webdriver.support.select import Select
@@ -12,7 +18,10 @@ class JobScraper:
 
     def __init__(self) -> None:
         self.BASE_URL = "https://jobs.dou.ua/"
-        self.driver = webdriver.Chrome()
+        chrome_options = Options()
+        service = Service(ChromeDriverManager().install())
+        chrome_options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=chrome_options, service=service)
         self.jobs = []
 
     def open_site(self) -> None:
@@ -29,27 +38,16 @@ class JobScraper:
         select = Select(categories_dropdown)
         categories = {i: option.text for i, option
                       in enumerate(select.options, start=1)}
-        print("\nAvailable Categories:")
-        for index, name in categories.items():
-            print(f"{index}. {name}")
         return select, categories
 
-    def chose_category(self):
+    def chose_category(self, category_name: str) -> None:
         """Choose category from dropdown menu in terminal"""
 
         select, categories = self.get_categories()
 
-        while True:
-            try:
-                choice = int(input("\nChoose a category: "))
-                if choice in categories:
-                    select.select_by_visible_text(categories[choice])
-                    time.sleep(2)
-                    return
-                else:
-                    print("\nInvalid choice. Please try again.")
-            except ValueError:
-                print("Invalid input. Enter a number.")
+        if category_name in categories.values():
+            select.select_by_visible_text(category_name)
+            time.sleep(2)
 
     def scrape_jobs(self) -> None:
         """Extract vacancies from Dou"""
@@ -58,10 +56,13 @@ class JobScraper:
         for job in job_container:
             position = job.find_element(By.CLASS_NAME, "vt").text
             company = job.find_element(By.CLASS_NAME, "company").text
-            city = job.find_element(By.CLASS_NAME, "cities").text
+            try:
+                city = job.find_element(By.CLASS_NAME, "cities").text
+            except NoSuchElementException:
+                city = None
             try:
                 salary = job.find_element(By.CLASS_NAME, "salary").text
-            except:
+            except NoSuchElementException:
                 salary = None
             self.jobs.append({"position": position,
                               "company": company,
@@ -79,24 +80,24 @@ class JobScraper:
                 load_more_button.click()
                 time.sleep(2)
                 self.scrape_jobs()
-            except:
-                print("No more jobs")
+            except NoSuchElementException:
                 break
 
     def save_to_csv(self, filename: str) -> None:
         """Save vacancies to CSV"""
-        df = pd.DataFrame(self.jobs)
+        df = pd.DataFrame(self.jobs).drop_duplicates()
         df.to_csv(filename, index=False)
         print(f"Saved data to {filename}.csv")
 
-    def run_scraping(self) -> None:
+    def run_scraping(self, category_name) -> None:
         """Run scraping jobs"""
         self.open_site()
-        self.chose_category()
+        self.chose_category(category_name)
         self.scrape_jobs()
         self.load_more_btn()
         self.save_to_csv("jobs.csv")
         print("Finished")
+        self.driver.quit()
 
 
 if __name__ == "__main__":
