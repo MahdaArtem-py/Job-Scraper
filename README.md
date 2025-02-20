@@ -11,7 +11,6 @@ This project is a job scraper that extracts job listings from the Dou.ua job boa
   
 - **Job Scraping**:
   - Scrapes job details such as position, company, location, and salary.
-  - Supports clicking "Load More" to fetch additional job listings.
   
 - **Export**: 
   - Saves the scraped job listings to a CSV file for further analysis.
