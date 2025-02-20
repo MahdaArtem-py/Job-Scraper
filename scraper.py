@@ -1,5 +1,3 @@
-from ssl import Options
-
 import pandas as pd
 from selenium import webdriver
 from selenium.common import NoSuchElementException
@@ -21,6 +19,7 @@ class JobScraper:
         chrome_options = Options()
         service = Service(ChromeDriverManager().install())
         chrome_options.add_argument("--headless")
+
         self.driver = webdriver.Chrome(options=chrome_options, service=service)
         self.jobs = []
 
@@ -64,10 +63,13 @@ class JobScraper:
                 salary = job.find_element(By.CLASS_NAME, "salary").text
             except NoSuchElementException:
                 salary = None
+            link = job.find_element(By.CSS_SELECTOR,
+                                    "a.vt").get_attribute("href")
             self.jobs.append({"position": position,
                               "company": company,
                               "city or remote": city,
-                              "salary": salary})
+                              "salary": salary,
+                              "link": link})
 
     def load_more_btn(self) -> None:
         """Click on Load More button"""
@@ -80,7 +82,7 @@ class JobScraper:
                 load_more_button.click()
                 time.sleep(2)
                 self.scrape_jobs()
-            except NoSuchElementException:
+            except:
                 break
 
     def save_to_csv(self, filename: str) -> None:
